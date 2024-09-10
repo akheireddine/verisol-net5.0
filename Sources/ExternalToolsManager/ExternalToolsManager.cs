@@ -52,10 +52,10 @@ namespace VeriSolRunner.ExternalTools
             Z3.EnsureExisted();
 
             Boogie.EnsureExisted();
-            (Boogie as DotnetCliToolManager).EnsureLinkedToZ3(Z3);
+            // (Boogie as DotnetCliToolManager).EnsureLinkedToZ3(Z3);
 
             Corral.EnsureExisted();
-            (Corral as DotnetCliToolManager).EnsureLinkedToZ3(Z3);
+            // (Corral as DotnetCliToolManager).EnsureLinkedToZ3(Z3);
         }
     }
 }

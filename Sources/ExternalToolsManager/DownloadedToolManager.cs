@@ -5,7 +5,24 @@ namespace VeriSolRunner.ExternalTools
     using System.IO;
     using System.IO.Compression;
     using System.Net;
+    using System.Net.Http;
     using System.Runtime.InteropServices;
+    using System.Threading.Tasks;
+
+    public static class HttpClientUtils
+    {
+        public static async Task DownloadFileTaskAsync(this HttpClient client, Uri uri, string FileName)
+        {
+            using (var s = await client.GetStreamAsync(uri))
+            {
+                using (var fs = new FileStream(FileName, FileMode.CreateNew))
+                {
+                    await s.CopyToAsync(fs);
+                }
+            }
+        }
+    }
+
 
     internal class DownloadedToolManager : ToolManager
     {
@@ -187,6 +204,17 @@ namespace VeriSolRunner.ExternalTools
 
         private void Download()
         {
+            // HttpClient client = new HttpClient();
+            // var logStr = $"... Downloading {ZipFileName} from {DownloadURL} to {TempDirectory}";
+            // Console.WriteLine(logStr); // until we have better verbosity
+            // ExternalToolsManager.Log(logStr);
+            // var uri = new Uri(DownloadURL);
+            // Console.WriteLine($"\n AVANT AVOIR AWAIT !!!!{ZipFilePath}\n ");
+
+            // await client.DownloadFileTaskAsync(uri, TempDirectory);
+            // Console.WriteLine("APRES AVOIR AWAIT1 !!!");
+
+            // TODO AK : replace WebClient by Http as above
             using (var client = new WebClient())
             {
                 var logStr = $"... Downloading {ZipFileName} from {DownloadURL} to {TempDirectory}";
@@ -194,6 +222,7 @@ namespace VeriSolRunner.ExternalTools
                 ExternalToolsManager.Log(logStr);
                 client.DownloadFile(DownloadURL, ZipFilePath);
             }
+
         }
     }
 }

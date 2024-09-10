@@ -63,7 +63,7 @@ namespace SolidityAST
 
         public bool Execute(string filename)
         {
-            string filePath = testDirectory + "\\" + filename;
+            string filePath = testDirectory + "/" + filename;
 
             // read the program text
             string programText = File.ReadAllText(filePath);

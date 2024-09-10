@@ -1,11 +1,10 @@
 <Project>
-
   <PropertyGroup>
     <OutputType>Library</OutputType>
     <TargetFramework>net5.0</TargetFramework>
     <HighEntropyVA>true</HighEntropyVA>
     <ApplicationIcon />
-    <StartupObject /> 
+    <StartupObject />
   </PropertyGroup>
 
   <Import Project="..\VeriSol.props" />
@@ -14,10 +13,7 @@
   <ItemGroup>
     <ProjectReference Include="..\BoogieAST\BoogieAST.csproj" />
     <ProjectReference Include="..\SolidityAST\SolidityAST.csproj" />
-    <ProjectReference Include="..\SolidityAnalysis\SolidityAnalysis.csproj" />
   </ItemGroup>
 
   <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
-
 </Project>
-

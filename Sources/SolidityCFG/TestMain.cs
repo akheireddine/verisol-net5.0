@@ -15,12 +15,12 @@ namespace SolidityCFG
             DirectoryInfo debugDirectoryInfo = Directory.GetParent(Directory.GetCurrentDirectory());
             string workingDirectory = debugDirectoryInfo.Parent.Parent.Parent.Parent.FullName;
             string filename = "Branch.sol";
-            string solcPath = workingDirectory + "\\Tool\\solc.exe";
-            string filePath = workingDirectory + "\\Test\\regression\\" + filename;
+            string solcPath = workingDirectory + "/Tool/solc.exe";
+            string filePath = workingDirectory + "/Test/regressions/" + filename;
             SolidityCompiler compiler = new SolidityCompiler();
-            CompilerOutput compilerOutput = compiler.Compile(solcPath, filePath);
-            SoliditySourceFile soliditySourceFile = compilerOutput.Sources[filename];
-            ASTNode root = soliditySourceFile.Ast;
+            CompilerOutput compilerOutput = compiler.Compile(solcPath, filePath); 
+            SoliditySourceFile soliditySourceFile = compilerOutput.Sources[filename]; 
+            ASTNode root = soliditySourceFile.Ast; 
 
             Debug.Assert(root.GetType() == typeof(SourceUnit));
             foreach (ASTNode decl in ((SourceUnit) root).Nodes)

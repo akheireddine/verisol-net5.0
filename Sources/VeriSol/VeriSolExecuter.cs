@@ -60,26 +60,11 @@ namespace VeriSolRunner
         public int Execute()
         {
             // call SolToBoogie on specFilePath
-            try
+            if (!ExecuteSolToBoogie())
             {
-                if (!ExecuteSolToBoogie())
-                {
-                    return 1;
-                }
+                return 1;
             }
-            catch (Exception e)
-            {
-                if (e.Message == "Compilation Error")
-                {
-                    Console.WriteLine($"VeriSol Error: {e.Message}");
-                    return 1;
-                }
-                else
-                {
-                    Console.WriteLine($"VeriSol translation error: {e.Message}");
-                    return 1;
-                }
-            }
+
             // try to prove first
             if (TryProof && FindProof())
             {

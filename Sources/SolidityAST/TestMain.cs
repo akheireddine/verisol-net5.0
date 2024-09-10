@@ -11,16 +11,16 @@ namespace SolidityAST
         public static void Main(string[] args)
         {
             DirectoryInfo debugDirectoryInfo = Directory.GetParent(Directory.GetCurrentDirectory());
-            string workingDirectory = debugDirectoryInfo.Parent.Parent.Parent.Parent.FullName;
-            string solcPath = workingDirectory + "\\Tool\\solc.exe";
-            string testDir = workingDirectory + "\\Test\\regression";
+            string workingDirectory = debugDirectoryInfo.Parent.FullName;
+            string solcPath = workingDirectory + "/Tool/solc.exe";   
+            string testDir = workingDirectory + "/Test/regressions";  
 
             ILoggerFactory loggerFactory = LoggerFactory.Create(builder => builder.AddConsole()); // .AddConsole(LogLevel.Information);
             ILogger logger = loggerFactory.CreateLogger("SolidityAST.RegressionExecutor");
 
-            RegressionExecutor executor = new RegressionExecutor(solcPath, testDir, logger);
-            executor.BatchExecute();
-            Console.ReadLine();
+            RegressionExecutor executor = new RegressionExecutor(solcPath, testDir, logger); 
+            executor.BatchExecute(); 
+            Console.ReadLine(); 
         }
 
         // Legacy entry point for testing
@@ -29,14 +29,14 @@ namespace SolidityAST
             DirectoryInfo debugDirectoryInfo = Directory.GetParent(Directory.GetCurrentDirectory());
             string workingDirectory = debugDirectoryInfo.Parent.Parent.Parent.Parent.FullName;
             string filename = "AssertTrue.sol";
-            string solcPath = workingDirectory + "\\Tool\\solc.exe";
-            string filePath = workingDirectory + "\\Test\\regression\\" + filename;
+            string solcPath = workingDirectory + "/Tool/solc.exe"; 
+            string filePath = workingDirectory + "/Test/regressions/" + filename;
             SolidityCompiler compiler = new SolidityCompiler();
-            CompilerOutput compilerOutput = compiler.Compile(solcPath, filePath);
-            AST ast = new AST(compilerOutput);
+            CompilerOutput compilerOutput = compiler.Compile(solcPath, filePath); 
+            AST ast = new AST(compilerOutput); 
 
-            Console.WriteLine(ast.GetSourceUnits());
-            Console.ReadLine();
+            Console.WriteLine(ast.GetSourceUnits()); 
+            Console.ReadLine(); 
         }
     }
 }

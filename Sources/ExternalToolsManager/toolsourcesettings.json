@@ -29,12 +29,25 @@
   },
   "Boogie": {
     "Name": "boogie",
-    "Version": "2.4.1-netcore-alpha",
-    "DependencyRelativePath": ".store/boogie/2.4.1-netcore-alpha/boogie/2.4.1-netcore-alpha/tools/netcoreapp2.2/any/"
+    "Version": "net5.0",
+    "DownloadURLs": {
+      "linux": "https://github.com/boogie-org/boogie/archive/refs/tags/v2.9.1.zip"
+    },
+    "ExePathsWithinZip": {
+      "linux": "boogie-2.9.1"
+    }
   },
+  
   "Corral": {
     "Name": "corral",
-    "Version": "2.4.1-netcore-alpha",
-    "DependencyRelativePath": ".store/corral/2.4.1-netcore-alpha/corral/2.4.1-netcore-alpha/tools/netcoreapp2.2/any/"
+    "Version": "net5.0",
+    "DownloadURLs": {
+      "linux": "https://github.com/akheireddine/corral-net6.0/zipball/master"
+    },
+    "ExePathsWithinZip": {
+      "linux": "akheireddine-corral-net6.0-1161b4a"
+    }
+  },
+  
   }
 }

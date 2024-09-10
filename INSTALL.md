@@ -1,34 +1,27 @@
 # Install VeriSol
 
-- Install **.NET Core** (version **2.2**) for Windows/Linux/OSX from [here](https://dotnet.microsoft.com/download/dotnet-core/2.2#sdk-2.2.106)
+- Install **.NET Core** (version **5.0.408**) for Windows/Linux/OSX from [here](https://dotnet.microsoft.com/en-us/download/dotnet/5.0)
 
 The following are dynamically installed at VeriSol runtime (the first time only) [Solidity compiler](https://github.com/ethereum/solidity/releases/tag/v0.5.10) (for Windows and Linux only), [Z3 theorem prover](https://github.com/Z3Prover/z3/releases), [Corral](https://github.com/boogie-org/corral) and [Boogie](https://github.com/boogie-org/boogie) verifiers, the latter two are installed as dotnet cli tools.
 
 - Follow either **Nuget** package installation directly, or after building the **sources**.
 
-### Install from nuget.org
-Install to the **global** dotnet CLI tools cache so that you can run command  `VeriSol` from anywhere:
-```
-dotnet tool install VeriSol --version 0.1.5-alpha --global
-```
-
 ### Install from sources
 
 Perform the following set of commands:
 ```
-git clone https://github.com/microsoft/verisol.git
+git clone https://github.com/utopia-group/verisol.git
 ```
 
 From %VERISOL_PATH%  (the root folder of the repository), perform
 
 ```
-
 dotnet build Sources\VeriSol.sln
 ```
 
 Install to the **global** dotnet CLI tools cache so that you can run command  `VeriSol` from anywhere:
 ```
-dotnet tool install VeriSol --version 0.1.5-alpha --global --add-source %VERISOL_PATH%/nupkg/
+dotnet tool install VeriSol --version 0.1.1-alpha --global --add-source %VERISOL_PATH%/nupkg/
 ```
 You may need to uninstall a previous version first. Use `dotnet tool uninstall --global VeriSol` first then. 
 
