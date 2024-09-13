@@ -42,12 +42,10 @@
     "Name": "corral",
     "Version": "net5.0",
     "DownloadURLs": {
-      "linux": "https://github.com/akheireddine/corral-net6.0/zipball/master"
+      "linux": "https://github.com/boogie-org/corral/archive/refs/tags/v1.1.8.zip"
     },
     "ExePathsWithinZip": {
-      "linux": "akheireddine-corral-net6.0-1161b4a"
+      "linux": "corral-1.1.8"
     }
-  },
-  
   }
 }
