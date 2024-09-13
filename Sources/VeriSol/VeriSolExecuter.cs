@@ -88,7 +88,7 @@ namespace VeriSolRunner
                 //
                 $"-doModSetAnalysis",
                 $"-inline:spec", //was assert to before to fail when reaching recursive functions
-                $"-noinfer",
+                //$"-noinfer",
                 translatorFlags.PerformContractInferce? $"-contractInfer" : "",
                 $"-inlineDepth:{translatorFlags.InlineDepthForBoogie}", //contractInfer can perform inlining as well
                 // main method
