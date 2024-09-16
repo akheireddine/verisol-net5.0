@@ -11,7 +11,7 @@ namespace VeriSolRunner.ExternalTools
         public string Version { get; set; }
         public Dictionary<string, string> DownloadURLs { get; set; }
         public Dictionary<string, string> ExePathsWithinZip { get; set; }
-        public string DependencyRelativePath { get; set; }
+        public string DependencyRelativePath { get; set; }  = GetDefaultPath();
         public string CommandPath { get; set; } = GetDefaultPath();
 
         private static string GetDefaultPath()
