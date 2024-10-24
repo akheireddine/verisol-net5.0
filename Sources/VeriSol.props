@@ -1,12 +1,6 @@
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 
 
-  <Target Name="GetGitRoot" BeforeTargets="BeforeBuild">
-    <Exec Command="git rev-parse --show-toplevel" ConsoleToMSBuild="true">
-      <Output TaskParameter="ConsoleOutput" PropertyName="RepositoryROOT"/>
-    </Exec>
-  </Target>
-
  <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <RootDirectory>$(RepositoryROOT)</RootDirectory>
