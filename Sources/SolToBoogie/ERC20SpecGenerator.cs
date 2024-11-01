@@ -13,7 +13,8 @@ namespace SolToBoogie
         private TranslatorContext context;
         private AST solidityAST;
         private List<String> ERC20Vars = new List<string>() {"totalSupply", "balanceOf", "allowance"};
-        private List<String> ERC20fns = new List<string>() {"totalSupply", "balanceOf", "allowance", "approve", "transfer", "transferFrom"};
+        private List<String> ERC20fns = new List<string>() {"totalSupply", "balanceOf", "allowance", "approve", "transfer",
+                             "transferFrom","increaseAllowance","decreaseAllowance", "burn", "burnFrom","mint"};
         private ContractDefinition entryContract;
         private Dictionary<String, VariableDeclaration> varDecls;
         private Dictionary<String, ContractDefinition> fnContracts;
@@ -70,7 +71,6 @@ namespace SolToBoogie
                     {
                         ReturnDeclarationFinder declFinder = new ReturnDeclarationFinder(context);
                         VariableDeclaration decl = declFinder.findDecl(contract, fnDef);
-                                                
                         if (decl != null)
                         {
                             varDecls[fnDef.Name] = decl;
@@ -112,7 +112,7 @@ namespace SolToBoogie
             {
                 return v1No < v2No ? -1 : 1;
             }
-            
+
             throw new Exception("Two variables declared on the same line");*/
         }
 
@@ -159,6 +159,14 @@ namespace SolToBoogie
             string transferContract = fnContracts.ContainsKey("transfer") ? fnContracts["transfer"].Name : "";
             string transferFromContract =
                 fnContracts.ContainsKey("transferFrom") ? fnContracts["transferFrom"].Name : "";
+            string increaseAllowanceContract = 
+                fnContracts.ContainsKey("increaseAllowanceContract") ? fnContracts["increaseAllowanceContract"].Name : "";
+            string decreaseAllowanceContract = 
+                fnContracts.ContainsKey("decreaseAllowanceContract") ? fnContracts["decreaseAllowanceContract"].Name : "";
+			string burnContract = fnContracts.ContainsKey("burn") ? fnContracts["burn"].Name : "";
+			string burnFromContract = fnContracts.ContainsKey("burnFrom") ? fnContracts["burnFrom"].Name : "";
+			string mintContract = fnContracts.ContainsKey("mint") ? fnContracts["mint"].Name : "";
+
             string extraVars = String.Join(" ", otherVars.Select(v => $"this.{v.Name}"));
 
             writer.WriteLine($"FILE_NAME={filename}");
@@ -172,13 +180,381 @@ namespace SolToBoogie
             writer.WriteLine($"APPROVE_CONTRACT={approveContract}");
             writer.WriteLine($"TRANSFER_CONTRACT={transferContract}");
             writer.WriteLine($"TRANSFER_FROM_CONTRACT={transferFromContract}");
+            writer.WriteLine($"INCREASE_ALLOWANCE_CONTRACT={increaseAllowanceContract}");
+            writer.WriteLine($"DECREASE_ALLOWANCE_CONTRACT={decreaseAllowanceContract}");
+            writer.WriteLine($"BURN_CONTRACT={burnContract}");
+            writer.WriteLine($"BURN_FROM_CONTRACT={burnFromContract}");
+            writer.WriteLine($"MINT_CONTRACT={mintContract}");
             writer.WriteLine($"EXTRA_VARS=({extraVars})");
             for (int i = 0; i < allVars.Count; i++)
             {
                 writer.WriteLine($"{allVars[i].Name}={i}");
             }
             writer.Close();
+            writeERC20Spec();
         }
+        
+        public void writeERC20Spec()
+		{
+            String filename = context.ASTNodeToSourcePathMap[entryContract];
+            StreamWriter writer = new StreamWriter($"{filename.Substring(0, filename.Length - 4)}.spec");
+ 
+    		string totSupply = varDecls.ContainsKey("totalSupply") ? $"{varDecls["totalSupply"].Name}" : "";
+            string balances = varDecls.ContainsKey("balanceOf") ? $"{varDecls["balanceOf"].Name}" : "";
+            string allowances = varDecls.ContainsKey("allowance") ? $"{varDecls["allowance"].Name}" : "";
+            
+            string totContract = fnContracts.ContainsKey("totalSupply") ? fnContracts["totalSupply"].Name : "";
+            string balContract = fnContracts.ContainsKey("balanceOf") ? fnContracts["balanceOf"].Name : "";
+            // string allowanceContract = fnContracts.ContainsKey("allowance") ? fnContracts["allowance"].Name : "";
+            string approveContract = fnContracts.ContainsKey("approve") ? fnContracts["approve"].Name : "";
+            string transferContract = fnContracts.ContainsKey("transfer") ? fnContracts["transfer"].Name : "";
+            string transferFromContract = 
+                fnContracts.ContainsKey("transferFrom") ? fnContracts["transferFrom"].Name : "";
+            string increaseAllowanceContract = 
+                fnContracts.ContainsKey("increaseAllowanceContract") ? fnContracts["increaseAllowanceContract"].Name : "";
+            string decreaseAllowanceContract = 
+                fnContracts.ContainsKey("decreaseAllowanceContract") ? fnContracts["decreaseAllowanceContract"].Name : "";
+            string burnContract = fnContracts.ContainsKey("burn") ? fnContracts["burn"].Name : "";
+			string burnFromContract = fnContracts.ContainsKey("burnFrom") ? fnContracts["burnFrom"].Name : "";
+			string mintContract = fnContracts.ContainsKey("mint") ? fnContracts["mint"].Name : "";
+            
+
+
+			if (!String.IsNullOrEmpty(totSupply) && !String.IsNullOrEmpty(balances) && !String.IsNullOrEmpty(allowances))
+			{
+				// Total supply should change only by means of mint or burn
+	            // totalSupply (TODO:CHECK IF ITS REALLY test_ERC20_constantSupply)
+				writer.WriteLine($@"// LTLProperty: [](started({totContract}.totalSupply, 
+				this.{totSupply} >= 0 && 
+				this.{totSupply} < 2^256) ==>
+				<>(finished({totContract}.totalSupply, 
+				return == this.{totSupply} &&
+				this.{totSupply} == old(this.{totSupply}) &&
+				this.{balances} == old(this.{balances}) && 
+				this.{allowances} == old(this.{allowances}))))");
+				
+				// User balance must not exceed total supply
+				// test_ERC20_userBalanceNotHigherThanSupply
+				writer.WriteLine($@"// LTLProperty: [](finished({balContract}.balanceOf(msg.sender), 
+				return <= this.{totSupply} &&
+				return == this.{balances}[msg.sender] && 
+				this.{totSupply} == old(this.{totSupply}) && 
+				this.{balances} == old(this.{balances}) && 
+				this.{allowances} == old(this.{allowances})))");
+	            
+          		// Sum of users balance must not exceed total supply	
+	            // test_ERC20_usersBalancesNotHigherThanSupply
+				writer.WriteLine($@"// LTLProperty: [](finished(*,csum(this.{balances}) <= this.{totSupply}))");
+				
+				// Address zero should have zero balance
+				// test_ERC20_zeroAddressBalance
+				writer.WriteLine($@"// LTLProperty: [](finished({balContract}.balanceOf(null), return == 0))");
+				
+				// Transfers to zero address should not be allowed
+				// test_ERC20_transferToZeroAddress
+				// TODO: pas sur entre this et msg.sender ?
+				writer.WriteLine($"// LTLVariables: me:Ref");
+				writer.WriteLine($@"// LTLProperty: [](started({transferContract}.transfer(to,value), 
+				me != msg.sender &&
+				to == null && 
+				value == this.{balances}[me] && 
+				this.{balances}[me] > 0) ==> 
+				<>(finished({transferContract}.transfer(to,value), 
+				return == false && 
+				this.{totSupply} == old(this.{totSupply}) && 
+				this.{balances} == old(this.{balances}) && 
+				this.{allowances} == old(this.{allowances}))))");
+				
+				// Transfers to zero address should not be allowed
+				// test_ERC20_transferFromToZeroAddress
+				writer.WriteLine($"// LTLVariables: me:Ref");
+				writer.WriteLine($@"// LTLProperty: [](started({transferFromContract}.transferFrom(from, to, value), 
+				me != msg.sender && 
+				from == msg.sender && 
+				to == null && 
+				value >= this.{allowances}[from][me] && 
+				value >= this.{balances}[from] &&
+				this.{balances}[from] > 0 && 
+				this.{allowances}[from][me] > 0) ==>
+				<>(finished({transferFromContract}.transferFrom(from, to, value), 
+				return == false && 
+				this.{totSupply} == old(this.{totSupply}) &&
+				this.{balances} == old(this.{balances}) && 
+				this.{allowances}[from][me] == old(this.{allowances}[from][me]))))");
+				
+				
+				// Self transfers should not break accounting
+				// test_ERC20_selfTransferFrom
+				// TODO: pas cohérente avec erc20.spec
+				writer.WriteLine($"// LTLVariables: p1:Ref,p2:Ref");
+				writer.WriteLine($@"// LTLProperty: [](started({transferFromContract}.transferFrom(from, to, value), 
+				(p1 != from || p2 != msg.sender) && 
+				from == to && 
+				value <= this.{balances}[from] && 
+				value <= this.{allowances}[from][msg.sender] && 
+				value >= 0  && 
+				value < 2^256 && 
+				this.{balances}[to] >= 0 && 
+				this.{balances}[to] < 2^256 && 
+				this.{balances}[from] >= 0 &&  
+				this.{balances}[from] < 2^256 && 
+				this.{allowances}[from][msg.sender] >= 0 && 
+				this.{allowances}[from][msg.sender] < 2^256) ==> 
+			   <>(finished({transferFromContract}.transferFrom(from, to, value), 
+				return == true && 
+				this.{allowances}[from][msg.sender] == old(this.{allowances}[from][msg.sender]) - value && 
+				this.{totSupply} == old(this.{totSupply}) && 
+				this.{balances} == old(this.{balances}) && 
+				this.{allowances}[p1][p2] == old(this.{allowances}[p1][p2]))))");
+				
+			 	// Self transfers should not break accounting
+				// test_ERC20_selfTransfer
+				writer.WriteLine($@"// LTLProperty: [](started({transferContract}.transfer(to, value), 
+				msg.sender == to && 
+				value <= this.{balances}[msg.sender] && 
+				value >= 0  && 
+				value < 2^256 && 
+				this.{balances}[to] >= 0 && 
+				this.{balances}[to] < 2^256 && 
+				this.{balances}[msg.sender] >= 0 &&  
+				this.{balances}[msg.sender] < 2^256) ==> 
+			   <>(finished({transferContract}.transfer(to, value), 
+				return == true && 
+				this.{totSupply} == old(this.{totSupply}) && 
+				this.{balances} == old(this.{balances}) && 
+				this.{allowances} == old(this.{allowances}))))");
+				
+				
+				// Transfers for more than available balance should not be allowed
+				// test_ERC20_transferFromMoreThanBalance
+				writer.WriteLine($"// LTLVariables: me:Ref");
+				writer.WriteLine($@"// LTLProperty: [](started({transferFromContract}.transferFrom(from, to, value),
+				from == msg.sender && 
+				to != msg.sender && 
+				me != msg.sender && 
+				value == this.{balances}[from] + 1 && 
+				this.{balances}[from] > 0 && 
+				this.{allowances}[from][me] > this.{balances}[from]) ==> 
+				<>(finished({transferFromContract}.transferFrom(from, to, value),
+				return == false && 
+				this.{balances}[from] == old(this.{balances}[from]) && 
+				this.{balances}[to] == old(this.{balances}[to]))))");
+
+
+				// Transfers for more than available balance should not be allowed
+				// test_ERC20_transferMoreThanBalance
+				writer.WriteLine($"// LTLVariables: me:Ref");
+				writer.WriteLine($@"// LTLProperty: [](started({transferContract}.transfer(to,value),  
+				me != to && 
+				me != msg.sender && 
+				to != msg.sender && 
+				this.{balances}[me] > 0) ==> 
+				<>(finished({transferContract}.transfer(to,value),
+				return == false && 
+				this.{balances}[me] == old(this.{balances}[me]) && 
+				this.{balances}[to] == old(this.{balances}[to]))))");
+
+				// Zero amount transfers should not break accounting
+				// test_ERC20_transferZeroAmount
+				writer.WriteLine($"// LTLVariables: me:Ref");
+				writer.WriteLine($@"// LTLProperty: [](started({transferContract}.transfer(to,value), 
+				me != to && 
+				me != msg.sender && 
+				to != msg.sender && 
+				value == 0 && 
+				this.{balances}[me] > 0) ==> 
+				<>(finished({transferContract}.transfer(to,value),
+				return == true && 
+				this.{balances}[me] == old(this.{balances}[me]) && 
+				this.{balances}[to] == old(this.{balances}[to]))))");
+				
+				
+				// Zero amount transfers should not break accounting
+				// test_ERC20_transferFromZeroAmount
+				writer.WriteLine($"// LTLVariables: me:Ref");
+				writer.WriteLine($@"// LTLProperty: [](started({transferFromContract}.transferFrom(from, to, value),
+				from == msg.sender && 
+				to != from && 
+				value == 0  && 
+				this.{balances}[from] > 0 && 
+				this.{allowances}[from][me] > 0 ) ==> 
+				<>(finished({transferFromContract}.transferFrom(from, to, value),
+				return == true && 
+				this.{balances}[from] == old(this.{balances}[from]) && 
+				this.{balances}[to] == old(this.{balances}[to]))))");
+				
+				
+				// Transfers should update accounting correctly
+				// test_ERC20_transfer
+				writer.WriteLine($"// LTLVariables: me:Ref");
+				writer.WriteLine($@"// LTLProperty: [](started({transferContract}.transfer(to,value), 
+				me != msg.sender && 
+				me != to && 
+				to != msg.sender && 
+				value <= this.{balances}[msg.sender] && 
+				this.{balances}[to] + value < 2^256 && 
+				value > 0  && 
+				value < 2^256 && 
+				this.{balances}[me] > 2 &&  
+				this.{balances}[me] < 2^256) ==> 
+			   <>(finished({transferContract}.transfer(to, value), 
+				return == true && 
+				this.{balances}[me] == old(this.{balances}[me]) - value &&  
+				this.{balances}[to] == old(this.{balances}[to]) + value && 
+				this.{totSupply} == old(this.{totSupply}) &&  
+				this.{allowances} == old(this.{allowances}) &&  
+				this.{balances}[msg.sender] == old(this.{balances}[msg.sender]))))");
+				
+				 // Transfers should update accounting correctly
+				// test_ERC20_transferFrom
+				writer.WriteLine($"// LTLVariables: me:Ref");
+				writer.WriteLine($@"// LTLProperty: [](started({transferFromContract}.transferFrom(from, to, value),
+				me != to && 
+				me != msg.sender && 
+				to != msg.sender && 
+				this.{balances}[msg.sender] > 2 && 
+				this.{allowances}[msg.sender][me] > this.{balances}[msg.sender] && 
+				value > 0 && 
+				value < 2^256) ==> 
+				<>(finished({transferFromContract}.transferFrom(from, to, value),
+				return == true && 
+				this.{balances}[msg.sender] == old(this.{balances}[msg.sender]) - value &&  
+				this.{balances}[to] == old(this.{balances}[to]) + value && 
+				this.{totSupply} == old(this.{totSupply}) &&  
+				this.{allowances} == old(this.{allowances}) &&  
+				this.{balances}[me] == old(this.{balances}[me]))))");
+				
+				
+				
+				// Approve should set correct allowances
+				// test_ERC20_setAllowance
+				writer.WriteLine($"// LTLVariables: me:Ref");
+				writer.WriteLine($@"// LTLProperty: [](started({approveContract}.approve(to, value),
+				me != to && 
+				value >= 0 &&
+				this.{allowances}[me][to] >= 0 && 
+				this.{allowances}[me][to] < 2^256) ==> 
+			   <>(finished({approveContract}.approve(to, value), 
+				return == true && 
+				this.{allowances}[me][to] == value)))");
+				
+				
+				
+				// Approve should set correct allowances
+				// test_ERC20_setAllowanceTwice
+				writer.WriteLine($"// LTLVariables: me:Ref");
+				writer.WriteLine($@"// LTLProperty: [](started({approveContract}.approve(to, value),
+				me != to && 
+				value >= 0 &&
+				this.{allowances}[me][to] >= 0 && 
+				this.{allowances}[me][to] < 2^256) ==> 
+			    ((<>(finished({approveContract}.approve(to, value), 
+				return == true && 
+				this.{allowances}[me][to] == value))) ==> 
+				(<>(finished({approveContract}.approve(to, value), 
+				return == true && 
+				this.{allowances}[me][to] == value * 0.5)))))");
+				
+				// TransferFrom should decrease allowance
+				// test_ERC20_spendAllowanceAfterTransfer
+				writer.WriteLine($"// LTLVariables: me:Ref");
+				writer.WriteLine($@"// LTLProperty: [](started({transferFromContract}.transferFrom(from, to, value),
+				me != msg.sender && 
+				me != to && 
+				from == msg.sender &&  
+				to != from && 
+				to != null && 
+				value > 0 && 
+				this.{balances}[from] > 0 && 
+				this.{allowances}[from][me] > this.{balances}[from]) ==> 
+				<>(finished({transferFromContract}.transferFrom(from, to, value),
+				return == true && 
+				this.{allowances}[from][me] == old(this.{allowances}[from][me]) - value)))");
+				
+				
+				
+				// Burn should update user balance and total supply
+				// test_ERC20_burn
+				writer.WriteLine($"// LTLVariables: me:Ref");
+				writer.WriteLine($@"// LTLProperty: [](started({burnContract}.burn(value),
+				me != msg.sender &&
+				this.{balances}[me] > 0 && 
+				value >= 0 && 
+				value < 2^256) ==> 
+				<>(finished({burnContract}.burn(value), 
+				this.{balances}[me] == old(this.{balances}[me]) - value && 
+				this.{totSupply} == old(this.{totSupply}) - value)))");
+				
+				// Burn should update user balance and total supply
+				// test_ERC20_burnFrom
+				writer.WriteLine($"// LTLVariables: me:Ref");
+				writer.WriteLine($@"// LTLProperty: [](started({burnFromContract}.burnFrom(from, value),
+				me != msg.sender &&
+				from == msg.sender && 
+				value >= 0 && 
+				value < 2^256 && 
+				this.{balances}[from] > 0 && 
+				this.{allowances}[from][me] > this.{balances}[from]) ==> 
+				<>(finished({burnFromContract}.burnFrom(from, value),
+				this.{balances}[from] == old(this.{balances}[from]) - value && 
+				this.{totSupply} == old(this.{totSupply}) - value)))");
+				
+				// Burn should update user balance and total supply
+				// test_ERC20_burnFromUpdateAllowance
+				writer.WriteLine($"// LTLVariables: me:Ref");
+				writer.WriteLine($@"// LTLProperty: [](started({burnFromContract}.burnFrom(from, value),
+				me != msg.sender && 
+				from == msg.sender && 
+				this.{balances}[from] > 0 && 
+				this.{allowances}[from][me] > this.{balances}[from] && 
+				value >= 0 && 
+				value < 2^256) ==> 
+				<>(finished({burnFromContract}.burnFrom(from, value),
+				old(this.{allowances}[from][me]) < 2^256 && 
+				this.{balances}[me] == old(this.{balances}[me]) - value)))");
+				
+				// Minting tokens should update user balance and total supply
+				// test_ERC20_mintTokens
+				writer.WriteLine($@"// LTLProperty: [](started({mintContract}.mint(to, value),
+				true) ==> 
+				<>(finished({mintContract}.mint(to, value),
+				this.{balances}[to] == old(this.{balances}[to]) + value && 
+				this.{totSupply} == old(this.{totSupply}) + value)))");
+				
+				
+				// TODO: Tests for pausable tokens
+				// TODO: Tests for tokens implementing increaseAllowance and decreaseAllowance
+				
+
+				
+   				// Allowance should be modified correctly via increase/decrease
+				// test_ERC20_setAndIncreaseAllowance
+				writer.WriteLine($"// LTLVariables: me:Ref");
+				writer.WriteLine($"// LTLVariables: initialAmount:int");
+				writer.WriteLine($@"// LTLProperty: [](started({approveContract}.approve(to, value),
+				return == true && 
+				me != msg.sender && 
+				value == initialAmount && 
+				this.{allowances}[me][to] == value) ==>
+				<>(finished({increaseAllowanceContract}.increaseAllowance(to,value),
+				return == true && 
+				this.{allowances}[me][to] == initialAmount + value)))");
+				
+				
+				// Allowance should be modified correctly via increase/decrease
+				// test_ERC20_setAndDecreaseAllowance
+				writer.WriteLine($"// LTLVariables: me:Ref");
+				writer.WriteLine($"// LTLVariables: initialAmount:int");
+				writer.WriteLine($@"// LTLProperty: [](started({approveContract}.approve(to, value),
+				return == true && 
+				me != msg.sender && 
+				value == initialAmount && 
+				this.{allowances}[me][to] == value) ==>
+				<>(finished({decreaseAllowanceContract}.decreaseAllowance(to,value),
+				return == true && 
+				this.{allowances}[me][to] == initialAmount - value)))");
+			}
+		}
 
 
         private class ReturnDeclarationFinder : BasicASTVisitor
