@@ -29,9 +29,9 @@ namespace VeriSolRunner
         private bool TryRefutation;
         // private bool GenInlineAttrs;
         private ILogger Logger;
-        private readonly string outFileName = "__SolToBoogieTest_out.bpl";
-        private readonly string corralTraceFileName = "corral_out_trace.txt";
-        private readonly string counterexampleFileName = "corral_counterex.txt";
+        private readonly string outFileName;
+        private readonly string corralTraceFileName;
+        private readonly string counterexampleFileName;
         private readonly int CorralRecursionLimit;
         private readonly int CorralContextBound = 1; // always 1 for solidity
         private HashSet<Tuple<string, string>> ignoreMethods;
@@ -42,6 +42,9 @@ namespace VeriSolRunner
         {
             this.SolidityFilePath = solidityFilePath;
             this.ContractName = contractName;
+            this.outFileName = this.ContractName+"__SolToBoogie.bpl";
+            this.corralTraceFileName = this.ContractName+"corral_out_trace.txt";
+            this.counterexampleFileName = this.ContractName+"corral_counterex.txt";
             this.SolidityFileDir = Path.GetDirectoryName(solidityFilePath);
             Console.WriteLine($"SpecFilesDir = {SolidityFileDir}");
             this.CorralPath = ExternalToolsManager.Corral.Command;
