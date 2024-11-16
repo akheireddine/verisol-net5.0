@@ -224,52 +224,38 @@ namespace SolToBoogie
                 string specs = "";
                 string borne_sup = "0x10000000000000000000000000000000000000000000000000000000000000000";
 
-				// Total supply should change only by means of mint or burn
-	            // totalSupply (TODO:CHECK IF ITS REALLY test_ERC20_constantSupply)
-                // ERC20-BASE-001
-                specs += "// spec1\n";
-				specs += $"// #LTLProperty: [](started({totContract}.totalSupply, "+
-				$"this.{totSupply} >= 0 && "+
-				$"this.{totSupply} < {borne_sup}) ==>"+
-				$"<>(finished({totContract}.totalSupply, "+
-				$"return == this.{totSupply} &&"+
-				$"this.{totSupply} == old(this.{totSupply}) &&"+
-				$"this.{balances} == old(this.{balances}) && "+
-				$"this.{allowances} == old(this.{allowances}))))\n";
+
+                if(String.IsNullOrEmpty(mintContract) && String.IsNullOrEmpty(burnContract)){
+                    // Total supply should change only by means of mint or burn
+                    // totalSupply (TODO:CHECK IF ITS REALLY test_ERC20_constantSupply)
+                    // ERC20-BASE-001
+                    specs += "// ERC20-BASE-001\n";
+                    specs += $"// #LTLProperty: [](finished(*, this.{totSupply} == old(this.{totSupply})))\n";
+                }
 				
 				// User balance must not exceed total supply
 				// test_ERC20_userBalanceNotHigherThanSupply
                 // ERC20-BASE-002
-                specs += "// spec2\n";
-				specs += $"// #LTLProperty: [](finished({balContract}.balanceOf(msg.sender), "+
-				$"return <= this.{totSupply} &&"+
-				$"return == this.{balances}[msg.sender] && "+
-				$"this.{totSupply} == old(this.{totSupply}) &&"+ 
-				$"this.{balances} == old(this.{balances}) && "+
-				$"this.{allowances} == old(this.{allowances})))\n";
+                specs += "// ERC20-BASE-002\n";
+				specs += $"// #LTLProperty: [](finished(*, this.{balances}[msg.sender] <= this.{totSupply}))\n";
 	            
           		// Sum of users balance must not exceed total supply	
 	            // test_ERC20_usersBalancesNotHigherThanSupply
-                specs += "// spec3\n";
-				specs += $"// #LTLProperty: [](finished(*,csum(this.{balances}) <= this.{totSupply}))\n";
+                specs += "// ERC20-BASE-003\n";
+				specs += $"// #LTLProperty: [](finished(*,sum(this.{balances}) <= this.{totSupply}))\n";
 				
 				// Address zero should have zero balance
 				// test_ERC20_zeroAddressBalance
-                specs += "// spec4\n";
-				specs += $"// #LTLProperty: [](started({balContract}.balanceOf(sender), "+
-                "sender == null && sender != msg.sender) ==>"+
-                $"<>(finished({balContract}.balanceOf(sender), return == 0)))\n";
+                specs += "// ERC20-BASE-004\n";
+                specs += $"// #LTLProperty: [](finished(*,this.{balances}[null] == 0))\n";
 				
                 // Transfers to zero address should not be allowed
 				// test_ERC20_transferToZeroAddress
-				// TODO: pas sur entre this et msg.sender ?
-                specs += "// spec5\n";
-				specs += $"// #LTLVariables: me:Ref\n";
+                specs += "// ERC20-BASE-005\n";
 				specs += $"// #LTLProperty: [](started({transferContract}.transfer(to,value), "+
-				"me != msg.sender &&"+
 				"to == null && "+
-				$"value == this.{balances}[me] && "+
-				$"this.{balances}[me] > 0) ==> "+
+				$"value == this.{balances}[this] && "+
+				$"this.{balances}[this] > 0) ==> "+
 				$"<>(finished({transferContract}.transfer(to,value), "+
 				"return == false && "+
 				$"this.{totSupply} == old(this.{totSupply}) && "+
@@ -278,282 +264,255 @@ namespace SolToBoogie
 				
 				// Transfers to zero address should not be allowed
 				// test_ERC20_transferFromToZeroAddress
-                specs += "// spec6\n";
-				specs += $"// #LTLVariables: me:Ref\n";
+                specs += "// ERC20-BASE-006\n";
 				specs += $"// #LTLProperty: [](started({transferFromContract}.transferFrom(from, to, value), "+
-				"me != msg.sender && "+
 				"from == msg.sender && "+
 				"to == null && "+
-				$"value >= this.{allowances}[from][me] && "+
-				$"value >= this.{balances}[from] &&"+
-				$"this.{balances}[from] > 0 && "+
-				$"this.{allowances}[from][me] > 0) ==>"+
+                $"(value <= this.{balances}[msg.sender] || value <= this.{allowances}[msg.sender][this]) && " +
+                $"value < {borne_sup} && " +
+				$"this.{balances}[msg.sender] >= 0 &&  "+
+				$"this.{balances}[msg.sender] < {borne_sup} && "+
+				$"this.{allowances}[msg.sender][this] >= 0 && "+
+				$"this.{allowances}[msg.sender][this] < {borne_sup}) ==> "+
 				$"<>(finished({transferFromContract}.transferFrom(from, to, value), "+
 				"return == false && "+
-				$"this.{totSupply} == old(this.{totSupply}) &&"+
+				$"this.{totSupply} == old(this.{totSupply}) && "+
 				$"this.{balances} == old(this.{balances}) && "+
-				$"this.{allowances}[from][me] == old(this.{allowances}[from][me]))))\n";
+				$"this.{allowances}[msg.sender][this] == old(this.{allowances}[msg.sender][this]))))\n";
 				
 				
 				// Self transfers should not break accounting
 				// test_ERC20_selfTransferFrom
-				// TODO: pas cohérente avec erc20.spec
-                specs += "// spec7\n";
-				specs += $"// #LTLVariables: p1:Ref,p2:Ref\n";
+				// TODO: pas coherente avec erc20.spec
+                specs += "// ERC20-BASE-007\n";
 				specs += $"// #LTLProperty: [](started({transferFromContract}.transferFrom(from, to, value), "+
-				"(p1 != from || p2 != msg.sender) && "+
-				"from == to && "+
-				$"value <= this.{balances}[from] && "+
-				$"value <= this.{allowances}[from][msg.sender] && "+
-				"value >= 0  && "+
-				$"value < {borne_sup} && "+
-				$"this.{balances}[to] >= 0 && "+
-				$"this.{balances}[to] < {borne_sup} && "+
-				$"this.{balances}[from] >= 0 &&  "+
-				$"this.{balances}[from] < {borne_sup} && "+
-				$"this.{allowances}[from][msg.sender] >= 0 && "+
-				$"this.{allowances}[from][msg.sender] < {borne_sup}) ==> "+
+                "from == msg.sender && " +
+                "from == to && " +
+                $"(value <= this.{balances}[msg.sender] || value <= this.{allowances}[msg.sender][this]) && " +
+                $"value < {borne_sup} && " +		
+				$"this.{balances}[msg.sender] >= 0 &&  "+
+				$"this.{balances}[msg.sender] < {borne_sup} && "+
+				$"this.{allowances}[msg.sender][this] >= 0 && "+
+				$"this.{allowances}[msg.sender][this] < {borne_sup}) ==> "+
 			    $"<>(finished({transferFromContract}.transferFrom(from, to, value), "+
 				"return == true && "+
-				$"this.{allowances}[from][msg.sender] == old(this.{allowances}[from][msg.sender]) - value && "+
-				$"this.{totSupply} == old(this.{totSupply}) && "+
-				$"this.{balances} == old(this.{balances}) && "+
-				$"this.{allowances}[p1][p2] == old(this.{allowances}[p1][p2]))))\n";
+				$"this.{balances}[msg.sender] == old(this.{balances}[msg.sender]))))\n";
 				
 			 	// Self transfers should not break accounting
 				// test_ERC20_selfTransfer
-                specs += "// spec8\n";
+                specs += "// ERC20-BASE-008\n";
 				specs += $"// #LTLProperty: [](started({transferContract}.transfer(to, value), "+
-				"msg.sender == to && "+
-				$"value <= this.{balances}[msg.sender] && "+
-				"value >= 0  && "+
+                "to == this && "+
+                $"value <= this.{balances}[this] && "+
+				"value > 0 && "+
 				$"value < {borne_sup} && "+
-				$"this.{balances}[to] >= 0 && "+
-				$"this.{balances}[to] < {borne_sup} && "+
-				$"this.{balances}[msg.sender] >= 0 &&  "+
-				$"this.{balances}[msg.sender] < {borne_sup}) ==> "+
+				$"this.{balances}[this] > 0 &&  "+
+				$"this.{balances}[this] < {borne_sup}) ==> "+
 			    $"<>(finished({transferContract}.transfer(to, value), "+
 				"return == true && "+
-				$"this.{totSupply} == old(this.{totSupply}) && "+
-				$"this.{balances} == old(this.{balances}) && "+
-				$"this.{allowances} == old(this.{allowances}))))\n";
+				$"this.{balances}[this] == old(this.{balances}[this]))))\n";
 				
 				
 				// Transfers for more than available balance should not be allowed
 				// test_ERC20_transferFromMoreThanBalance
-                specs += "// spec9\n";
-				specs += $"// #LTLVariables: me:Ref\n";
+                specs += "// ERC20-BASE-009\n";
+				specs += $"// #LTLVariables: p1:Ref\n";
 				specs += $"// #LTLProperty: [](started({transferFromContract}.transferFrom(from, to, value),"+
 				"from == msg.sender && "+
-				"to != msg.sender && "+
-				"me != msg.sender && "+
-				$"value == this.{balances}[from] + 1 && "+
-				$"this.{balances}[from] > 0 && "+
-				$"this.{allowances}[from][me] > this.{balances}[from]) ==> "+
+                "p1 != from && p1 != to && "+
+				$"value > this.{balances}[msg.sender] && "+
+                $"value < this.{borne_sup} && "+
+				$"this.{balances}[to] >= 0 && "+
+                $"this.{balances}[to] < {borne_sup} && "+
+				$"this.{balances}[msg.sender] > 0 && "+
+				$"this.{balances}[msg.sender] < {borne_sup} && "+
+				$"this.{allowances}[msg.sender][this] > this.{balances}[from]) ==> "+
 				$"<>(finished({transferFromContract}.transferFrom(from, to, value),"+
 				"return == false && "+
-				$"this.{balances}[from] == old(this.{balances}[from]) && "+
-				$"this.{balances}[to] == old(this.{balances}[to]))))\n";
-
+				$"this.{balances}[msg.sender] == old(this.{balances}[msg.sender]) && "+
+				$"this.{balances}[to] == old(this.{balances}[to] && "+ 
+                $"this.{totSupply} == old(this.{totSupply}) && "+
+				$"this.{balances}[p1] == old(this.{balances}[p1]) && "+
+				$"this.{allowances} == old(this.{allowances}))))\n";
+				
 
 				// Transfers for more than available balance should not be allowed
 				// test_ERC20_transferMoreThanBalance
-                specs += "// spec10\n";
-				specs += $"// #LTLVariables: me:Ref\n";
+                specs += "//  ERC20-BASE-010\n";
+				specs += $"// #LTLVariables: p1:Ref\n";
 				specs += $"// #LTLProperty: [](started({transferContract}.transfer(to,value),  "+
-				"me != to && "+
-				"me != msg.sender && "+
-				"to != msg.sender && "+
-				$"this.{balances}[me] > 0) ==> "+
-				$"<>(finished({transferContract}.transfer(to,value),"+
+				"p1 != this && p1 != to && "+
+                $"value > this.{balances}[this] && "+
+                $"value < this.{borne_sup} && "+
+				$"this.{balances}[to] >= 0 && "+
+                $"this.{balances}[to] < {borne_sup} && "+
+				$"this.{balances}[this] > 0 && "+
+                $"this.{balances}[this] < {borne_sup}) ==> "+
+				$"<>(finished({transferContract}.transfer(to,value), "+
 				"return == false && "+
-				$"this.{balances}[me] == old(this.{balances}[me]) && "+
-				$"this.{balances}[to] == old(this.{balances}[to]))))\n";
+				$"this.{balances}[this] == old(this.{balances}[this]) && "+
+				$"this.{balances}[to] == old(this.{balances}[to]) && "+
+                $"this.{totSupply} == old(this.{totSupply}) && "+
+				$"this.{balances}[p1] == old(this.{balances}[p1]) && "+
+				$"this.{allowances} == old(this.{allowances}))))\n";
 
 				// Zero amount transfers should not break accounting
 				// test_ERC20_transferZeroAmount
-                specs += "// spec11\n";
-				specs += "// #LTLVariables: me:Ref\n";
+                specs += "// ERC20-BASE-011\n";
 				specs += $"// #LTLProperty: [](started({transferContract}.transfer(to,value), "+
-				"me != to && "+
-				"me != msg.sender && "+
-				"to != msg.sender && "+
+				"to != this && "+
 				"value == 0 && "+
-				$"this.{balances}[me] > 0) ==> "+
+				$"this.{balances}[this] > 0) ==> "+
 				$"<>(finished({transferContract}.transfer(to,value),"+
 				"return == true && "+
-				$"this.{balances}[me] == old(this.{balances}[me]) && "+
+				$"this.{balances}[this] == old(this.{balances}[this]) && "+
 				$"this.{balances}[to] == old(this.{balances}[to]))))\n";
 				
 				
 				// Zero amount transfers should not break accounting
 				// test_ERC20_transferFromZeroAmount
-                specs += "// spec12\n";
-				specs += "// #LTLVariables: me:Ref\n";
+                specs += "// ERC20-BASE-012\n";
 				specs += $"// #LTLProperty: [](started({transferFromContract}.transferFrom(from, to, value),"+
 				"from == msg.sender && "+
 				"to != from && "+
 				"value == 0  && "+
-				$"this.{balances}[from] > 0 && "+
-				$"this.{allowances}[from][me] > 0 ) ==> "+
+				$"this.{balances}[msg.sender] > 0 && "+
+				$"this.{allowances}[msg.sender][this] > 0 ) ==> "+
 				$"<>(finished({transferFromContract}.transferFrom(from, to, value),"+
 				"return == true && "+
-				$"this.{balances}[from] == old(this.{balances}[from]) && "+
+				$"this.{balances}[test_ERC20_transferMoreThanBalance] == old(this.{balances}[test_ERC20_transferMoreThanBalance]) && "+
 				$"this.{balances}[to] == old(this.{balances}[to]))))\n";
 				
 				
 				// Transfers should update accounting correctly
 				// test_ERC20_transfer
-                specs += "// spec13\n";
-				specs += $"// #LTLVariables: me:Ref\n";
+                specs += "// ERC20-BASE-013\n";
+                specs += $"// #LTLVariables: p1:Ref\n";
 				specs += $"// #LTLProperty: [](started({transferContract}.transfer(to,value), "+
-				"me != msg.sender && "+
-				"me != to && "+
-				"to != msg.sender && "+
-				$"value <= this.{balances}[msg.sender] && "+
-				$"this.{balances}[to] + value < {borne_sup} &&"+ 
+				"p1 != this &&  p1 != to && "+
+				"to != this && "+
+				$"this.{balances}[to] + value < {borne_sup} && "+ 
 				"value > 0  && "+
-				$"value < {borne_sup} &&"+ 
-				$"this.{balances}[me] > 2 &&  "+
-				$"this.{balances}[me] < {borne_sup}) ==> "+
+				$"value <= this.{balances}[this] && "+ 
+				$"this.{balances}[this] > 2) ==> "+
 			    $"<>(finished({transferContract}.transfer(to, value), "+
 				"return == true && "+
-				$"this.{balances}[me] == old(this.{balances}[me]) - value &&  "+
+				$"this.{balances}[this] == old(this.{balances}[this]) - value &&  "+
 				$"this.{balances}[to] == old(this.{balances}[to]) + value && "+
 				$"this.{totSupply} == old(this.{totSupply}) &&  "+
 				$"this.{allowances} == old(this.{allowances}) &&  "+
-				$"this.{balances}[msg.sender] == old(this.{balances}[msg.sender]))))\n";
+				$"this.{balances}[p1] == old(this.{balances}[p1]))))\n";
 				
 				 // Transfers should update accounting correctly
 				// test_ERC20_transferFrom
-                specs += "// spec14\n";
-				specs += $"// #LTLVariables: me:Ref\n";
+                specs += "// ERC20-BASE-014\n";
+				specs += $"// #LTLVariables: p1:Ref\n";
 				specs += $"// #LTLProperty: [](started({transferFromContract}.transferFrom(from, to, value),"+
-				"me != to && "+
-				"me != msg.sender && "+
+				"p1 != this && p1 != to && "+
+				"to != this && "+
 				"to != msg.sender && "+
 				$"this.{balances}[msg.sender] > 2 && "+
-				$"this.{allowances}[msg.sender][me] > this.{balances}[msg.sender] && "+
-				"value > 0 && "+
-				$"value < {borne_sup}) ==> "+
+				$"this.{allowances}[msg.sender][this] > this.{balances}[msg.sender] && "+
+				$"this.{balances}[to] + value < {borne_sup} && "+ 
+				"value > 0  && "+
+				$"value <= this.{balances}[this] ) ==> "+
 				$"<>(finished({transferFromContract}.transferFrom(from, to, value),"+
 				"return == true && "+
 				$"this.{balances}[msg.sender] == old(this.{balances}[msg.sender]) - value &&  "+
 				$"this.{balances}[to] == old(this.{balances}[to]) + value && "+
 				$"this.{totSupply} == old(this.{totSupply}) &&  "+
 				$"this.{allowances} == old(this.{allowances}) &&  "+
-				$"this.{balances}[me] == old(this.{balances}[me]))))\n";
+				$"this.{balances}[p1] == old(this.{balances}[p1]))))\n";
 				
 				
 				
 				// Approve should set correct allowances
 				// test_ERC20_setAllowance
-                specs += "// spec15\n";
-				specs += $"// #LTLVariables: me:Ref\n";
-				specs += $"// #LTLProperty: [](started({approveContract}.approve(to, value),"+
-				"me != to && "+
-				"value >= 0 &&"+
-				$"this.{allowances}[me][to] >= 0 && "+
-				$"this.{allowances}[me][to] < {borne_sup}) ==> "+
-			    $"<>(finished({approveContract}.approve(to, value), "+
+                specs += "// ERC20-BASE-015\n";
+				specs += $"// #LTLProperty: [](finished({approveContract}.approve(to, value),"+
 				"return == true && "+
-				$"this.{allowances}[me][to] == value)))\n";
+				$"this.{allowances}[this][to] == value))\n";
 				
 				
 				
 				// Approve should set correct allowances
 				// test_ERC20_setAllowanceTwice
-                specs += "// spec16\n";
-				specs += $"// #LTLVariables: me:Ref\n";
-				specs += $"// #LTLProperty: [](started({approveContract}.approve(to, value),"+
-				"me != to && "+
-				"value >= 0 &&"+
-				$"this.{allowances}[me][to] >= 0 && "+
-				$"this.{allowances}[me][to] < {borne_sup}) ==> "+
-			    $"((<>(finished({approveContract}.approve(to, value), "+
+                specs += "// ERC20-BASE-016\n";
+				specs += $"// #LTLProperty: [](finished({approveContract}.approve(to, value),"+
 				"return == true && "+
-				$"this.{allowances}[me][to] == value))) ==> "+
-				$"(<>(finished({approveContract}.approve(to, value), "+
+				$"this.{allowances}[this][to] == value) && "+
+				$"(X(finished({approveContract}.approve(to, value), "+
 				"return == true && "+
-				$"this.{allowances}[me][to] == value * 0.5)))))\n";
+				$"this.{allowances}[this][to] == value * 0.5)))))\n";
 				
 				// TransferFrom should decrease allowance
 				// test_ERC20_spendAllowanceAfterTransfer
-                specs += "// spec17\n";
-				specs += $"// #LTLVariables: me:Ref\n";
+                specs += "// ERC20-BASE-017\n";
 				specs += $"// #LTLProperty: [](started({transferFromContract}.transferFrom(from, to, value),"+
-				"me != msg.sender &&"+ 
-				"me != to && "+
 				"from == msg.sender &&  "+
-				"to != from && "+
+				"to != this && "+ 
+				"to != msg.sender && "+
 				"to != null && "+
 				"value > 0 && "+
-				$"this.{balances}[from] > 0 && "+
-				$"this.{allowances}[from][me] > this.{balances}[from]) ==> "+
+				$"value <= this.{balances}[msg.sender] && "+
+				$"this.{balances}[msg.sender] > 0 && "+
+				$"this.{allowances}[msg.sender][this] > this.{balances}[msg.sender]) ==> "+
 				$"<>(finished({transferFromContract}.transferFrom(from, to, value),"+
 				"return == true && "+
-				$"this.{allowances}[from][me] == old(this.{allowances}[from][me]) - value)))\n";
+				$"this.{allowances}[msg.sender][this] == old(this.{allowances}[msg.sender][this]) - value)))\n";
 				
 				
 				
                 if (!String.IsNullOrEmpty(burnContract)){
                     // Burn should update user balance and total supply
                     // test_ERC20_burn
-                    specs += "// spec18\n";
-                    specs += $"// #LTLVariables: me:Ref\n";
-                    specs += $"// #LTLProperty: [](started({burnContract}.burn(value),"+
-                    "me != msg.sender &&"+
-                    $"this.{balances}[me] > 0 && "+
-                    "value >= 0 && "+
-                    $"value < {borne_sup}) ==> "+
-                    $"<>(finished({burnContract}.burn(value), "+
-                    $"this.{balances}[me] == old(this.{balances}[me]) - value && "+
-                    $"this.{totSupply} == old(this.{totSupply}) - value)))\n";
+                    specs += "// ERC20-BURNABLE-001\n";
+                    specs += $"// #LTLProperty: [](started({burnContract}.burn(amount),"+
+                    $"this.{balances}[this] > 0 && "+
+                    "amount >= 0 && "+
+                    $"amount <= this.{balances}[this]) ==> "+
+                    $"<>(finished({burnContract}.burn(amount), "+
+                    $"this.{balances}[this] == old(this.{balances}[this]) - amount && "+
+                    $"this.{totSupply} == old(this.{totSupply}) - amount)))\n";
                 }
 				
                 if (!String.IsNullOrEmpty(burnFromContract)){
                     // Burn should update user balance and total supply
                     // test_ERC20_burnFrom
-                    specs += "// spec19\n";
-                    specs += $"// #LTLVariables: me:Ref\n";
-                    specs += $"// #LTLProperty: [](started({burnFromContract}.burnFrom(from, value),"+
-                    "me != msg.sender &&"+
-                    "from == msg.sender &&"+ 
-                    "value >= 0 && "+
-                    $"value < {borne_sup} && "+
-                    $"this.{balances}[from] > 0 && "+
-                    $"this.{allowances}[from][me] > this.{balances}[from]) ==> "+
-                    $"<>(finished({burnFromContract}.burnFrom(from, value),"+
-                    $"this.{balances}[from] == old(this.{balances}[from]) - value && "+
-                    $"this.{totSupply} == old(this.{totSupply}) - value)))\n";
+                    specs += "// ERC20-BURNABLE-002\n";
+                    specs += $"// #LTLProperty: [](started({burnFromContract}.burnFrom(from, amount),"+
+                    "from == msg.sender && "+ 
+                    "amount >= 0 && "+
+                    $"amount < this.{balances}[msg.sender] && "+
+                    $"this.{balances}[msg.sender] > 0 && "+
+                    $"this.{allowances}[msg.sender][this] > this.{balances}[msg.sender]) ==> "+
+                    $"<>(finished({burnFromContract}.burnFrom(from, amount),"+
+                    $"this.{balances}[msg.sender] == old(this.{balances}[msg.sender]) - amount && "+
+                    $"this.{totSupply} == old(this.{totSupply}) - amount)))\n";
                 
 				
                     // Burn should update user balance and total supply
                     // test_ERC20_burnFromUpdateAllowance
-                    specs += "// spec20\n";
-                    specs += $"// #LTLVariables: me:Ref\n";
-                    specs += $"// #LTLProperty: [](started({burnFromContract}.burnFrom(from, value),"+
-                    "me != msg.sender && "+
+                    specs += "// ERC20-BURNABLE-003\n";
+                    specs += $"// #LTLProperty: [](started({burnFromContract}.burnFrom(from, amount),"+
                     "from == msg.sender && "+
-                    $"this.{balances}[from] > 0 &&"+ 
-                    $"this.{allowances}[from][me] > this.{balances}[from] && "+
-                    "value >= 0 && "+
-                    $"value < {borne_sup}) ==> "+
-                    $"<>(finished({burnFromContract}.burnFrom(from, value),"+
-                    $"old(this.{allowances}[from][me]) < {borne_sup} && "+
-                    $"this.{balances}[me] == old(this.{balances}[me]) - value)))\n";
+                    $"this.{balances}[msg.sender] > 0 && "+ 
+                    $"this.{allowances}[msg.sender][this] > this.{balances}[msg.sender] && "+
+                    "amount >= 0 && "+
+                    $"amount <= this.{balances}[msg.sender] ) ==> "+
+                    $"<>(finished({burnFromContract}.burnFrom(from, amount),"+
+                    $"old(this.{allowances}[from][this]) < {borne_sup} && "+
+                    $"this.{allowances}[from][this] == old(this.{allowances}[from][this]) - amount)))\n";
 				}
 
 
                 if (!String.IsNullOrEmpty(mintContract)){
                     // Minting tokens should update user balance and total supply
                     // test_ERC20_mintTokens
-                    specs += "// spec21\n";
-                    specs += $"// #LTLProperty: [](started({mintContract}.mint(to, value),"+
-                    "true) ==> "+
-                    $"<>(finished({mintContract}.mint(to, value),"+
-                    $"this.{balances}[to] == old(this.{balances}[to]) + value && "+
-                    $"this.{totSupply} == old(this.{totSupply}) + value)))\n";
+                    specs += "// ERC20-MINTABLE-001\n";
+                    specs += $"// #LTLProperty: [](finished({mintContract}.mint(to, amount),"+
+                    $"this.{balances}[to] == old(this.{balances}[to]) + amount && "+
+                    $"this.{totSupply} == old(this.{totSupply}) + amount))\n";
                 }
 				
 				// TODO: Tests for pausable tokens
@@ -564,33 +523,30 @@ namespace SolToBoogie
                 if (!String.IsNullOrEmpty(approveContract) && !String.IsNullOrEmpty(increaseAllowanceContract)){   
                     // Allowance should be modified correctly via increase/decrease
                     // test_ERC20_setAndIncreaseAllowance
-                    specs += "// spec22\n";
-                    specs += $"// #LTLVariables: me:Ref\n";
+                    specs += "// ERC20-ALLOWANCE-001\n";
                     specs += $"// #LTLVariables: initialAmount:int\n";
                     specs += $"// #LTLProperty: [](started({approveContract}.approve(to, value)"+
                     "return == true && "+
-                    "me != msg.sender && "+
                     "value == initialAmount && "+
-                    $"this.{allowances}[me][to] == value) ==>"+
+                    $"this.{allowances}[this][to] == value) ==>"+
                     $"<>(finished({increaseAllowanceContract}.increaseAllowance(to,value),"+
                     "return == true && "+
-                    $"this.{allowances}[me][to] == initialAmount + value)))\n";
+                    $"this.{allowances}[this][to] == initialAmount + value)))\n";
                 }
 				
                 if (!String.IsNullOrEmpty(approveContract) && !String.IsNullOrEmpty(decreaseAllowanceContract)){  
 
                     // Allowance should be modified correctly via increase/decrease
                     // test_ERC20_setAndDecreaseAllowance
-                    specs += "// spec23\n";
-                    specs += $"// #LTLVariables: me:Ref, initialAmount:int\n";
+                    specs += "// ERC20-ALLOWANCE-002\n";
+                    specs += $"// #LTLVariables: initialAmount:int\n";
                     specs += $"// #LTLProperty: [](started({approveContract}.approve(to, value),"+
                     "return == true && "+
-                    "me != msg.sender && "+
-                    "value == initialAmount &&"+ 
-                    $"this.{allowances}[me][to] == value) ==>"+
+                    "value == initialAmount && "+ 
+                    $"this.{allowances}[this][to] == value) ==>"+
                     $"<>(finished({decreaseAllowanceContract}.decreaseAllowance(to,value),"+
                     "return == true && "+
-                    $"this.{allowances}[me][to] == initialAmount - value)))\n";
+                    $"this.{allowances}[this][to] == initialAmount - value)))\n";
                 }
                 writer.WriteLine(specs);
                 writer.Close();
